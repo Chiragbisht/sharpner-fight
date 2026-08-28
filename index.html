@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>Sharpener Fight — the desk flicking game, in your browser</title>
+    <meta
+      name="description"
+      content="Flick your sharpener across the desk and knock your opponent's off the edge. Play the computer for free, no sign-up — or take on a friend. First to 3 rounds wins."
+    />
+    <link rel="canonical" href="https://sharpenerfight.com/" />
+    <meta name="theme-color" content="#33443a" />
+
+    <!-- Most people arrive from a shared link, not a search result, so these
+         tags matter more than the keywords do. og-image.png is generated from
+         og-image.svg via `npm run og`; the crawlers will not render an SVG. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sharpenerfight.com/" />
+    <meta property="og:title" content="Sharpener Fight — the desk flicking game" />
+    <meta
+      property="og:description"
+      content="Flick your sharpener, knock theirs off the edge. Free, in the browser, no sign-up."
+    />
+    <meta property="og:image" content="https://sharpenerfight.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Sharpener Fight" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sharpener Fight — the desk flicking game" />
+    <meta
+      name="twitter:description"
+      content="Flick your sharpener, knock theirs off the edge. Free, in the browser, no sign-up."
+    />
+    <meta name="twitter:image" content="https://sharpenerfight.com/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Sharpener Fight",
+        "url": "https://sharpenerfight.com/",
+        "description": "A browser game of the classic desk sport: flick your sharpener across the table and knock the opponent's sharpener off the edge.",
+        "genre": ["Casual", "Sports", "Multiplayer"],
+        "gamePlatform": "Web browser",
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "playMode": ["SinglePlayer", "CoOp", "MultiPlayer"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
+    <link rel="icon" href="/favicon.svg" />
+    <!-- Loaded as a real stylesheet rather than through the JS entry. Vite's
+         dev server injects imported CSS only once the module has run, which
+         paints one frame of unstyled HTML on every refresh. A link in the head
+         blocks that first paint, so there is nothing to flash. -->
+    <link rel="stylesheet" href="/src/style.css" />
+
+    <style>
+      /* Belt and braces: if the stylesheet is ever slow or missing, the page
+         shows the classroom's dark green rather than a stack of raw markup. */
+      html, body { margin: 0; height: 100%; }
+      body { background: #22302a; overflow: hidden; }
+      [hidden] { display: none !important; }
+      #app { position: fixed; inset: 0; }
+      #board { position: absolute; inset: 0; width: 100%; height: 100%; }
+      #overlay { position: absolute; inset: 0; display: grid; place-items: center; }
+    </style>
+
+    <!-- Fetched alongside the stylesheet rather than after it, so the real
+         type is ready on the first frame instead of swapping in late. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="/fonts/patrick-hand-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="/fonts/patrick-hand-sc-latin.woff2" />
+  </head>
+  <body>
+    <noscript>
+      <div style="max-width:34em;margin:8vh auto;padding:0 24px;color:#eef5ea;font-family:system-ui,sans-serif;line-height:1.6">
+        <h1>Sharpener Fight</h1>
+        <p>
+          The desk sport everyone played at the back of class, now a browser
+          game. Drag back from your sharpener, let go, and knock your opponent's
+          sharpener off the edge of the desk. First to three rounds wins.
+        </p>
+        <p>
+          Play the computer at three difficulties, or sign in with Google and
+          play a friend online with a room code. Free, no download.
+        </p>
+        <p><strong>This game needs JavaScript.</strong></p>
+      </div>
+    </noscript>
+
+    <div id="app">
+      <canvas id="board"></canvas>
+
+      <nav id="topbar">
+        <button class="nav icon" id="navSound" title="Sound on or off">🔊</button>
+        <button class="nav" id="navFriend" disabled>Play with a friend</button>
+        <button class="nav" id="navHow">How to play</button>
+        <button class="nav solid" id="navSignIn">Sign in</button>
+        <span class="me" id="navMe" hidden>
+          <img class="avatar" id="navAvatar" alt="" referrerpolicy="no-referrer" />
+          <span class="avatar initial" id="navInitial" hidden></span>
+          <span id="navName"></span>
+          <button class="nav" id="navSignOut">Sign out</button>
+        </span>
+      </nav>
+
+      <button class="badge" id="badge" title="Menu">
+        <span class="mark">SF</span>
+        <span>Build 0.1</span>
+      </button>
+
+      <p id="hint" hidden>Drag back from your sharpener, then let go</p>
+      <div id="banner" hidden></div>
+
+      <div id="overlay">
+        <!-- Menu -->
+        <div class="paper" id="menuCard">
+          <div class="paper-head">
+            <button class="back close" data-close title="Close">&times;</button>
+            <span class="wordmark">Sharpener Fight</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <div class="doodle" aria-hidden="true"></div>
+
+          <h1 class="title">Pick your fight.</h1>
+          <p class="blurb">
+            Knock the other sharpener clean off the desk. First to three rounds
+            takes the match.
+          </p>
+
+          <div class="field">
+            <label>Players</label>
+            <div class="seg seg-four" id="playerCount">
+              <button data-value="2" class="on">2</button>
+              <button data-value="3">3</button>
+              <button data-value="4">4</button>
+              <button data-value="5">5</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Computer difficulty</label>
+            <div class="seg" id="difficulty">
+              <button data-value="easy">Easy</button>
+              <button data-value="medium" class="on">Medium</button>
+              <button data-value="hard">Hard</button>
+            </div>
+          </div>
+
+          <button class="secondary" id="openSkins">
+            Your sharpener
+            <span class="soon" id="skinLabel">Bubblegum</span>
+          </button>
+
+          <button class="primary" id="playAi">Play the computer</button>
+          <button class="secondary" id="playOnline" disabled>
+            Play a friend online
+            <span class="soon">needs sign-in</span>
+          </button>
+        </div>
+
+        <!-- Match over -->
+        <div class="paper" id="overCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="overBack" title="Back to the menu">‹</button>
+            <span class="wordmark">Sharpener Fight</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <h2 class="title" id="overTitle">Match over</h2>
+          <p class="blurb" id="overText"></p>
+
+          <button class="primary" id="rematch">Rematch</button>
+          <button class="secondary" id="toMenu">Change mode</button>
+        </div>
+
+        <!-- Sign in -->
+        <div class="paper" id="authCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="authBack" title="Back">&lsaquo;</button>
+            <span class="wordmark">Sign in</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <h2 class="title">Keep your matches.</h2>
+          <p class="blurb">
+            Sign in to save your record and play friends online. Your name and
+            picture, nothing else.
+          </p>
+
+          <div class="gbtn" id="googleButton"></div>
+          <p class="authnote" id="authNote" hidden></p>
+
+          <p class="foot">
+            You stay on this page — Google opens in a small popup.
+          </p>
+        </div>
+
+        <!-- Play online -->
+        <div class="paper" id="onlineCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="onlineBack" title="Back">&lsaquo;</button>
+            <span class="wordmark">Play a friend</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <h2 class="title">Two desks, one game.</h2>
+          <p class="blurb">Make a room and send the code, or type one you were given.</p>
+
+          <button class="primary" id="createRoom">Create a room</button>
+
+          <div class="field" style="margin-top: 18px">
+            <label>Or join with a code</label>
+            <div class="joinrow">
+              <input id="joinCode" maxlength="5" placeholder="ABCDE" autocomplete="off" />
+              <button class="secondary joinbtn" id="joinRoom">Join</button>
+            </div>
+          </div>
+
+          <button class="secondary" id="openFriends">Your friends</button>
+          <p class="authnote" id="onlineNote" hidden></p>
+        </div>
+
+        <!-- Lobby -->
+        <div class="paper" id="lobbyCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="lobbyBack" title="Leave">&lsaquo;</button>
+            <span class="wordmark">Lobby</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <p class="blurb" style="margin-bottom: 6px">Room code</p>
+          <div class="code" id="roomCode">–––––</div>
+          <button class="linkish" id="copyCode">Copy the link</button>
+
+          <ul class="seats" id="seats"></ul>
+
+          <button class="primary" id="readyUp">I'm ready</button>
+          <button class="secondary" id="inviteFromLobby">Invite a friend</button>
+          <p class="authnote" id="lobbyNote" hidden></p>
+        </div>
+
+        <!-- Friends -->
+        <div class="paper" id="friendsCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="friendsBack" title="Back">&lsaquo;</button>
+            <span class="wordmark">Friends</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <div class="field">
+            <label>Find someone by name or handle</label>
+            <div class="joinrow">
+              <input id="friendSearch" placeholder="chirag" autocomplete="off" />
+            </div>
+          </div>
+
+          <ul class="rows" id="searchResults"></ul>
+
+          <p class="grouplabel" id="incomingLabel" hidden>Wants to be friends</p>
+          <ul class="rows" id="incomingList"></ul>
+
+          <p class="grouplabel">Your friends</p>
+          <ul class="rows" id="friendsList"></ul>
+          <p class="foot" id="friendsEmpty">Nobody yet. Search for a handle above.</p>
+        </div>
+
+        <!-- Incoming invite -->
+        <div class="paper" id="inviteCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="inviteBack" title="Ignore">&lsaquo;</button>
+            <span class="wordmark">Invitation</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <h2 class="title" id="inviteTitle">Someone wants a game.</h2>
+          <p class="blurb" id="inviteText"></p>
+
+          <button class="primary" id="acceptInvite">Join their room</button>
+          <button class="secondary" id="ignoreInvite">Not now</button>
+        </div>
+
+        <!-- Sharpener picker -->
+        <div class="paper" id="skinCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="skinBack" title="Back">&lsaquo;</button>
+            <span class="wordmark">Your sharpener</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <p class="blurb">
+            Pick one. They all flick exactly the same — this is only how yours
+            looks on the desk.
+          </p>
+
+          <div class="skingrid" id="skinGrid"></div>
+        </div>
+
+        <!-- How to play -->
+        <div class="paper" id="howCard" hidden>
+          <div class="paper-head">
+            <button class="back" id="howBack" title="Back">‹</button>
+            <span class="wordmark">How to play</span>
+            <button class="back close" data-close title="Close">&times;</button>
+          </div>
+          <div class="rule"></div>
+
+          <ol class="steps">
+            <li>Press on <strong>your</strong> sharpener — the one with the dashed ring.</li>
+            <li>Drag <strong>away</strong> from where you want it to go, like a slingshot. Pull further for more power.</li>
+            <li>Let go. The dotted line shows where it starts off.</li>
+            <li>Push theirs over the edge to win the round. Fall off yourself and you lose it.</li>
+          </ol>
+          <p class="foot">Score is chalked on the board. Best of five.</p>
+
+          <button class="primary" id="howClose">Got it</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

@@ -1,0 +1,25 @@
+{
+  // tools/ runs under Node's own type stripping (node 22.18+), which requires
+  // explicit .ts extensions on relative imports and rewrites nothing.
+  "compilerOptions": {
+    "target": "ES2022",
+    // DOM is here for the page.evaluate() bodies in perf.mts: that code is
+    // authored in this file but runs inside the browser.
+    "lib": ["ES2023", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true
+  },
+  "include": ["tools", "vite.config.ts", "src/game"]
+}

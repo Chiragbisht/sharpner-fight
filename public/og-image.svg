@@ -1,0 +1,65 @@
+<!-- Source for the share image. Regenerate the PNG with `npm run og`;
+     the social crawlers do not render SVG previews. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4d6355"/>
+      <stop offset="1" stop-color="#33443a"/>
+    </linearGradient>
+    <linearGradient id="desk" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c99359"/>
+      <stop offset="1" stop-color="#96682f"/>
+    </linearGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc0b0"/>
+      <stop offset="1" stop-color="#a8331f"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b0f2fb"/>
+      <stop offset="1" stop-color="#136f81"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/>
+      <stop offset="1" stop-color="#8d98a3"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#wall)"/>
+
+  <!-- desk, in the same perspective as the game -->
+  <path d="M 250 350 L 950 350 L 1090 600 L 110 600 Z" fill="url(#desk)"/>
+  <path d="M 110 600 L 1090 600 L 1090 624 L 110 624 Z" fill="#6d4a26"/>
+  <path d="M 250 350 L 950 350 L 1090 600 L 110 600 Z" fill="none"
+        stroke="rgba(255,232,200,0.5)" stroke-width="4"/>
+
+  <g transform="translate(400 468) rotate(-9)">
+    <rect x="-58" y="-50" width="116" height="100" rx="18" fill="url(#coral)"/>
+    <rect x="-22" y="-34" width="70" height="68" rx="6" fill="url(#blade)"/>
+    <rect x="-14" y="-6" width="56" height="12" fill="#2b3138"/>
+    <ellipse cx="-40" cy="0" rx="9" ry="16" fill="#5e2013"/>
+  </g>
+
+  <g transform="translate(800 468) rotate(17)">
+    <rect x="-58" y="-50" width="116" height="100" rx="18" fill="url(#cyan)"/>
+    <rect x="-22" y="-34" width="70" height="68" rx="6" fill="url(#blade)"/>
+    <rect x="-14" y="-6" width="56" height="12" fill="#2b3138"/>
+    <ellipse cx="-40" cy="0" rx="9" ry="16" fill="#0d4855"/>
+  </g>
+
+  <g stroke="rgba(255,255,255,0.4)" stroke-width="6" stroke-linecap="round" stroke-dasharray="4 26">
+    <line x1="486" y1="452" x2="716" y2="452"/>
+  </g>
+
+  <text x="600" y="150" text-anchor="middle" font-family="Helvetica, Arial, sans-serif"
+        font-size="86" font-weight="bold" fill="#f4f8f2" letter-spacing="-1">
+    SHARPENER FIGHT
+  </text>
+  <text x="600" y="212" text-anchor="middle" font-family="Helvetica, Arial, sans-serif"
+        font-size="32" fill="#ffb95e">
+    Flick yours. Knock theirs off the desk.
+  </text>
+  <text x="600" y="272" text-anchor="middle" font-family="Helvetica, Arial, sans-serif"
+        font-size="22" fill="rgba(253,250,241,0.6)" letter-spacing="3">
+    FREE · NO SIGN-UP · IN YOUR BROWSER
+  </text>
+</svg>

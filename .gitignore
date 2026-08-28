@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.env.local
+.DS_Store
+*.log
+.vite
+
+# Local agent/editor state, and the vendored Supabase skill docs. The docs are
+# re-fetchable from skills-lock.json, which records their source and hash.
+.agents/
+.claude/
+.mcp.json

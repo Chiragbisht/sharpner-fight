@@ -1,0 +1,788 @@
+/* Classroom look: green wall, wooden desk, and UI torn out of a school
+   exercise book. The canvas paints the room; everything here is the paper. */
+
+/* Fonts are self-hosted rather than pulled from Google. A third-party font
+   stylesheet is render-blocking, so it delayed first paint by a whole network
+   round trip; served from our own origin and preloaded, the text is there on
+   the first frame. Latin subset only — the game is English. */
+@font-face {
+  font-family: 'Patrick Hand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/patrick-hand-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Patrick Hand SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/patrick-hand-sc-latin.woff2') format('woff2');
+}
+
+:root {
+  --ink: #1f3fa0;
+  --ink-soft: #5a72bd;
+  --ink-faint: #93a4d6;
+  --paper: #fdfaf1;
+  --paper-line: #b9c9e8;
+  --margin: #e0736a;
+  --p0: #ff7a63;
+  --p1: #4fd6e8;
+  --hand: 'Patrick Hand', 'Bradley Hand', 'Segoe Print', cursive;
+  --hand-sc: 'Patrick Hand SC', var(--hand);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: #22302a;
+  color: var(--ink);
+  font-family: var(--hand);
+  font-size: 18px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { position: fixed; inset: 0; }
+
+#board {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none; /* every gesture is handled in JS */
+  cursor: grab;
+}
+
+#board:active { cursor: grabbing; }
+
+/* ---------- top bar ---------- */
+
+#topbar {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 5;
+}
+
+.nav {
+  padding: 9px 16px 7px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(253, 250, 241, 0.9);
+  color: #2c3a33;
+  font-family: var(--hand-sc);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.28);
+}
+
+.nav:hover:not(:disabled) { background: #fff; transform: translateY(-1px); }
+.nav:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28); }
+.nav:disabled { opacity: 0.5; cursor: not-allowed; }
+.nav.solid { background: #f6efd8; }
+
+.me {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 999px;
+  background: rgba(253, 250, 241, 0.9);
+  color: #2c3a33;
+  font-size: 15px;
+}
+
+.me[hidden] { display: none; }
+
+.avatar.initial {
+  display: grid;
+  place-items: center;
+  background: #d8613f;
+  color: #2a0d06;
+  font-family: var(--hand-sc);
+  font-size: 14px;
+}
+
+.avatar[hidden] { display: none; }
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #cbd3cc;
+}
+
+/* Google renders its own button, so give it room and centre it rather than
+   trying to restyle something we do not control. */
+.gbtn {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  margin: 4px 0 12px;
+}
+
+.authnote {
+  margin: 0 0 10px;
+  color: #b4453a;
+  font-size: 16px;
+  text-align: center;
+}
+
+.authnote[hidden] { display: none; }
+
+/* ---------- corner badge ---------- */
+
+.badge {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(253, 250, 241, 0.72);
+  font-size: 15px;
+  text-decoration: none;
+  z-index: 5;
+}
+
+.badge .mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 30px;
+  border-radius: 5px;
+  background: #d8613f;
+  color: #2a0d06;
+  font-family: var(--hand-sc);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+.badge:hover { color: #fff; }
+
+/* ---------- hint + banner ---------- */
+
+#hint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 9px 20px 7px;
+  border-radius: 999px;
+  background: rgba(253, 250, 241, 0.92);
+  color: #2c3a33;
+  font-size: 17px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+#banner {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%) rotate(-1.4deg);
+  padding: 18px 40px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--hand-sc);
+  font-size: 30px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  clip-path: polygon(
+    0.0% 1.1%,
+    2.5% 0.0%,
+    5.0% 1.1%,
+    7.5% 0.0%,
+    10.0% 1.1%,
+    12.5% 0.0%,
+    15.0% 1.1%,
+    17.5% 0.0%,
+    20.0% 1.1%,
+    22.5% 0.0%,
+    25.0% 1.1%,
+    27.5% 0.0%,
+    30.0% 1.1%,
+    32.5% 0.0%,
+    35.0% 1.1%,
+    37.5% 0.0%,
+    40.0% 1.1%,
+    42.5% 0.0%,
+    45.0% 1.1%,
+    47.5% 0.0%,
+    50.0% 1.1%,
+    52.5% 0.0%,
+    55.0% 1.1%,
+    57.5% 0.0%,
+    60.0% 1.1%,
+    62.5% 0.0%,
+    65.0% 1.1%,
+    67.5% 0.0%,
+    70.0% 1.1%,
+    72.5% 0.0%,
+    75.0% 1.1%,
+    77.5% 0.0%,
+    80.0% 1.1%,
+    82.5% 0.0%,
+    85.0% 1.1%,
+    87.5% 0.0%,
+    90.0% 1.1%,
+    92.5% 0.0%,
+    95.0% 1.1%,
+    97.5% 0.0%,
+    100.0% 1.1%,
+    100.0% 98.9%,
+    97.5% 100.0%,
+    95.0% 98.9%,
+    92.5% 100.0%,
+    90.0% 98.9%,
+    87.5% 100.0%,
+    85.0% 98.9%,
+    82.5% 100.0%,
+    80.0% 98.9%,
+    77.5% 100.0%,
+    75.0% 98.9%,
+    72.5% 100.0%,
+    70.0% 98.9%,
+    67.5% 100.0%,
+    65.0% 98.9%,
+    62.5% 100.0%,
+    60.0% 98.9%,
+    57.5% 100.0%,
+    55.0% 98.9%,
+    52.5% 100.0%,
+    50.0% 98.9%,
+    47.5% 100.0%,
+    45.0% 98.9%,
+    42.5% 100.0%,
+    40.0% 98.9%,
+    37.5% 100.0%,
+    35.0% 98.9%,
+    32.5% 100.0%,
+    30.0% 98.9%,
+    27.5% 100.0%,
+    25.0% 98.9%,
+    22.5% 100.0%,
+    20.0% 98.9%,
+    17.5% 100.0%,
+    15.0% 98.9%,
+    12.5% 100.0%,
+    10.0% 98.9%,
+    7.5% 100.0%,
+    5.0% 98.9%,
+    2.5% 100.0%,
+    0.0% 98.9%
+  );
+  animation: slap 0.24s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+#banner small {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--hand);
+  font-size: 17px;
+  color: var(--ink-soft);
+}
+
+@keyframes slap {
+  from { opacity: 0; transform: translate(-50%, -50%) rotate(-1.4deg) scale(1.14); }
+}
+
+/* ---------- overlay + paper cards ---------- */
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 16, 12, 0.55);
+  overflow-y: auto;
+  z-index: 4;
+}
+
+#overlay[hidden] { display: none; }
+
+.paper {
+  position: relative;
+  width: min(392px, 100%);
+  padding: 24px 30px 28px;
+  background: var(--paper);
+  background-image: repeating-linear-gradient(
+    var(--paper) 0 27px,
+    var(--paper-line) 27px 28px
+  );
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  clip-path: polygon(
+    0.0% 1.1%,
+    2.5% 0.0%,
+    5.0% 1.1%,
+    7.5% 0.0%,
+    10.0% 1.1%,
+    12.5% 0.0%,
+    15.0% 1.1%,
+    17.5% 0.0%,
+    20.0% 1.1%,
+    22.5% 0.0%,
+    25.0% 1.1%,
+    27.5% 0.0%,
+    30.0% 1.1%,
+    32.5% 0.0%,
+    35.0% 1.1%,
+    37.5% 0.0%,
+    40.0% 1.1%,
+    42.5% 0.0%,
+    45.0% 1.1%,
+    47.5% 0.0%,
+    50.0% 1.1%,
+    52.5% 0.0%,
+    55.0% 1.1%,
+    57.5% 0.0%,
+    60.0% 1.1%,
+    62.5% 0.0%,
+    65.0% 1.1%,
+    67.5% 0.0%,
+    70.0% 1.1%,
+    72.5% 0.0%,
+    75.0% 1.1%,
+    77.5% 0.0%,
+    80.0% 1.1%,
+    82.5% 0.0%,
+    85.0% 1.1%,
+    87.5% 0.0%,
+    90.0% 1.1%,
+    92.5% 0.0%,
+    95.0% 1.1%,
+    97.5% 0.0%,
+    100.0% 1.1%,
+    100.0% 98.9%,
+    97.5% 100.0%,
+    95.0% 98.9%,
+    92.5% 100.0%,
+    90.0% 98.9%,
+    87.5% 100.0%,
+    85.0% 98.9%,
+    82.5% 100.0%,
+    80.0% 98.9%,
+    77.5% 100.0%,
+    75.0% 98.9%,
+    72.5% 100.0%,
+    70.0% 98.9%,
+    67.5% 100.0%,
+    65.0% 98.9%,
+    62.5% 100.0%,
+    60.0% 98.9%,
+    57.5% 100.0%,
+    55.0% 98.9%,
+    52.5% 100.0%,
+    50.0% 98.9%,
+    47.5% 100.0%,
+    45.0% 98.9%,
+    42.5% 100.0%,
+    40.0% 98.9%,
+    37.5% 100.0%,
+    35.0% 98.9%,
+    32.5% 100.0%,
+    30.0% 98.9%,
+    27.5% 100.0%,
+    25.0% 98.9%,
+    22.5% 100.0%,
+    20.0% 98.9%,
+    17.5% 100.0%,
+    15.0% 98.9%,
+    12.5% 100.0%,
+    10.0% 98.9%,
+    7.5% 100.0%,
+    5.0% 98.9%,
+    2.5% 100.0%,
+    0.0% 98.9%
+  );
+  transform: rotate(-0.6deg);
+}
+
+/* The red margin rule down the left, like every school notebook. */
+.paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 22px;
+  width: 1.5px;
+  background: var(--margin);
+  opacity: 0.75;
+}
+
+.paper[hidden] { display: none; }
+
+.paper-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--hand);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.back:hover { border-color: var(--ink); }
+
+/* Same chip as the back chevron, so the header stays symmetrical. */
+.back.close {
+  font-size: 21px;
+  line-height: 1;
+  padding-bottom: 3px;
+}
+
+.nav.icon {
+  padding: 0;
+  width: 38px;
+  height: 34px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.wordmark {
+  flex: 1;
+  font-family: var(--hand-sc);
+  font-size: 19px;
+  letter-spacing: 0.09em;
+  text-align: center;
+}
+
+.rule { height: 1.5px; margin: 7px 0 14px; background: var(--ink); opacity: 0.55; }
+
+h1.title, h2.title {
+  margin: 0 0 6px;
+  font-family: var(--hand-sc);
+  font-size: 27px;
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.blurb {
+  margin: 0 0 15px;
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* A sharpener drawn in CSS, sitting on the page like a doodle. */
+.doodle {
+  position: relative;
+  width: 88px;
+  height: 62px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ffc0b0, #c0472f);
+  box-shadow: 0 7px 0 rgba(0, 0, 0, 0.16);
+  transform: rotate(-7deg);
+}
+
+.doodle::after {
+  content: '';
+  position: absolute;
+  inset: 13px 22px 13px 30px;
+  border-radius: 3px;
+  background: linear-gradient(#f7fafc, #97a3ae);
+}
+
+.doodle::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 11px;
+  height: 20px;
+  border-radius: 50%;
+  background: #6d2314;
+  transform: translateY(-50%);
+}
+
+.field { margin-bottom: 16px; }
+
+.field label {
+  display: block;
+  margin-bottom: 7px;
+  font-family: var(--hand-sc);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.seg.seg-four { grid-template-columns: repeat(4, 1fr); }
+
+.seg button {
+  padding: 9px 0 7px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--hand);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.seg button.on {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: rgba(31, 63, 160, 0.09);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+/* Buttons look like something biro'd into the margin: a double-ruled box. */
+button.primary,
+button.secondary {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px 16px 9px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--hand-sc);
+  font-size: 19px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3.5px var(--ink);
+}
+
+button.primary { background: rgba(31, 63, 160, 0.1); }
+
+button.primary:hover:not(:disabled),
+button.secondary:hover:not(:disabled) { background: rgba(31, 63, 160, 0.18); }
+
+button.primary:active, button.secondary:active { transform: translateY(1px); }
+
+button.secondary { border-color: var(--ink-faint); box-shadow: none; font-size: 17px; }
+
+button:disabled { opacity: 0.42; cursor: not-allowed; }
+
+.soon {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--hand);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+.steps { margin: 0 0 6px; padding-left: 22px; line-height: 1.6; }
+.steps li { margin-bottom: 8px; }
+
+.foot {
+  margin: 18px 0 0;
+  font-size: 15px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  #topbar { top: 10px; right: 10px; gap: 6px; }
+  .nav { padding: 7px 10px 6px; font-size: 13px; }
+  .paper { padding: 24px 24px 28px; }
+  #hint { font-size: 15px; bottom: 14px; }
+  #banner { font-size: 24px; padding: 14px 26px 11px; }
+}
+
+
+/* ---------- online play ---------- */
+
+.joinrow { display: flex; gap: 8px; }
+
+.joinrow input {
+  flex: 1 1 auto;
+  min-width: 6ch;
+  padding: 10px 12px 8px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--hand);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+}
+
+.joinrow input:focus { outline: none; border-color: var(--ink); }
+.joinrow input::placeholder { color: var(--ink-faint); }
+
+/* button.secondary sets width:100% and outranks a bare .joinbtn class, which
+   squeezed the input down to a sliver. Match its specificity and pin the
+   button's width so the input keeps the remaining space. */
+.joinrow button.joinbtn {
+  flex: 0 0 auto;
+  width: auto;
+  margin-top: 0;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+.code {
+  margin: 0 0 6px;
+  font-family: var(--hand-sc);
+  font-size: 44px;
+  letter-spacing: 0.22em;
+  text-align: center;
+  color: var(--ink);
+}
+
+.linkish {
+  display: block;
+  margin: 0 auto 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--hand);
+  font-size: 15px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkish:hover { color: var(--ink); }
+
+.seats, .rows { margin: 0 0 14px; padding: 0; list-style: none; }
+
+.seats li, .rows li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--ink-faint);
+  font-size: 17px;
+}
+
+.seats li:last-child, .rows li:last-child { border-bottom: 0; }
+
+.rows img, .seats img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #dfe3ea;
+}
+
+.rows .name, .seats .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rows .handle { color: var(--ink-faint); font-size: 14px; }
+
+.pill {
+  padding: 4px 11px 2px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--hand);
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pill:hover:not(:disabled) { border-color: var(--ink); background: rgba(31, 63, 160, 0.08); }
+.pill:disabled { opacity: 0.45; cursor: default; }
+
+.online-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #46b06a;
+  flex: none;
+}
+
+.online-dot.off { background: var(--ink-faint); opacity: 0.5; }
+
+.grouplabel {
+  margin: 14px 0 4px;
+  font-family: var(--hand-sc);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.grouplabel[hidden] { display: none; }
+
+.ready-tick { color: #46b06a; font-size: 18px; }
+
+
+/* ---------- sharpener picker ---------- */
+
+.skingrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.skinopt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px 6px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--hand);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.skinopt img {
+  width: 100%;
+  max-width: 76px;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.skinopt:hover { border-color: var(--ink); }
+
+.skinopt.on {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: rgba(31, 63, 160, 0.09);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}

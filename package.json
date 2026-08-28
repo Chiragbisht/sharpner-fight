@@ -1,0 +1,24 @@
+{
+  "name": "sharpener-fight",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Flick your sharpener across the table and knock the other one off the edge.",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tools.json",
+    "verify": "node tools/verify.mts",
+    "og": "magick -background '#41564a' public/og-image.svg -resize 1200x630 public/og-image.png"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "playwright": "^1.62.1",
+    "typescript": "^7.0.2",
+    "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.112.4"
+  }
+}
